@@ -1,0 +1,379 @@
+import pandas as pd
+import numpy as np
+import seaborn as sb
+import matplotlib.pyplot as plt
+from scipy.stats import norm
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score,mean_squared_error
+from scipy import stats
+import warnings
+warnings.filterwarnings('ignore')
+%matplotlib inline
+train_data = pd.read_csv('train.csv')
+train_data
+train_data.info()
+to_be_removed = train_data.isnull().sum().sort_values(ascending=False) > 1
+to_be_removed = pd.DataFrame({'features':to_be_removed.index, 'isNull':to_be_removed.values})
+to_be_removed = list(to_be_removed[to_be_removed['isNull']==True].features.values)
+to_be_removed
+to_be_removed.remove('BsmtQual')
+to_be_removed
+train_data['Alley'] = train_data['Alley'].fillna(0)
+train_data['PoolQC'] = train_data['PoolQC'].fillna(0)
+train_data['MiscFeature'] = train_data['MiscFeature'].fillna(0)
+train_data['Fence'] = train_data['Fence'].fillna(0)
+train_data['FireplaceQu'] = train_data['FireplaceQu'].fillna(0)
+train_data['GarageCond'] = train_data['GarageCond'].fillna(0)
+train_data['GarageType'] = train_data['GarageType'].fillna(0)
+train_data['GarageFinish'] = train_data['GarageFinish'].fillna(0)
+train_data['BsmtExposure'] = train_data['BsmtExposure'].fillna(0)
+train_data['BsmtFinType2'] = train_data['BsmtFinType2'].fillna(0)
+train_data['BsmtFinType1'] = train_data['BsmtFinType1'].fillna(0)
+train_data['BsmtCond'] = train_data['BsmtCond'].fillna(0)
+
+import pylab as plt
+
+
+plt.rc('figure', figsize=(10, 4))
+
+fizsize_with_subplots = (10, 10)
+
+bin_size = 10
+fig = plt.figure(figsize=fizsize_with_subplots) 
+fig_dims = (3, 3)
+
+
+plt.subplot2grid(fig_dims, (0, 0))
+train_data['MiscFeature'].value_counts().plot(kind='bar', 
+                                         title='MiscFeature')
+plt.subplot2grid(fig_dims, (0, 1))
+train_data['PoolQC'].value_counts().plot(kind='bar', 
+                                         title='PoolQC')
+
+plt.subplot2grid(fig_dims, (0, 2))
+train_data['Alley'].value_counts().plot(kind='bar', 
+                                         title='Alley')
+
+plt.subplot2grid(fig_dims, (2, 0))
+train_data['Fence'].value_counts().plot(kind='bar', 
+                                         title='Fence')
+
+plt.subplot2grid(fig_dims, (2, 1))
+train_data['FireplaceQu'].value_counts().plot(kind='bar', 
+                                         title='FireplaceQu')
+
+plt.subplot2grid(fig_dims, (2, 2))
+train_data['GarageCond'].value_counts().plot(kind='bar', 
+                                         title='GarageCond')
+train_data.drop(to_be_removed, axis = 1, inplace = True)
+train_data.columns.shape
+train_data.isnull().sum()
+train_data.isnull().sum()
+quality_mapping = {'Ex':5, 'Gd':4, 'TA':3 , 'Fa':2, 'Po':1, 'NA':0}
+for c in train_data.columns:
+    if train_data[c].dtype == 'object':
+        print (c, train_data[c].unique())
+for c in train_data.columns:
+    if train_data[c].dtype == 'object' and any(x in train_data[c].unique() for x in quality_mapping):
+        print (c, train_data[c].unique())
+        train_data[c] = train_data[c].map(quality_mapping)
+train_data.ExterCond
+train_data.isnull().sum()
+train_data.BsmtQual[17]
+train_data.isnull().sum()
+train_data['BsmtQual']=train_data['BsmtQual'].fillna(0)
+train_data.columns[train_data.isnull().any()]
+train_data.Electrical
+train_data.Electrical.mode()[0]
+train_data['Electrical'] = train_data['Electrical'].fillna(train_data.Electrical.mode())
+train_data.isnull().sum().max()
+train_data.columns[train_data.isnull().any()]
+train_data.Electrical.isnull()
+m=train_data['Electrical'].mode()[0]
+train_data['Electrical'] = train_data['Electrical'].fillna(m)
+train_data.isnull().sum().sum()
+train_data.dtypes
+for c in train_data.columns[train_data.dtypes == 'object']:
+    print (c)
+    feature_char = sorted(train_data[c].unique())
+    count = 1
+    mapping = dict()
+    for key in feature_char:
+        mapping[key] = count
+        count += 1
+    print (mapping)
+    train_data[c] = train_data[c].map(mapping)
+train_data.MSZoning
+all(train_data.dtypes == 'object')
+train_data
+train_data.corr()
+corrmat = train_data.corr()
+sb.heatmap(corrmat, vmax=1, square=True)
+k = 15 #number of variables for heatmap
+cols = corrmat.nlargest(k, 'SalePrice')['SalePrice'].index
+cm = np.corrcoef(train_data[cols].values.T)
+sb.set(font_scale=1.25)
+hm = sb.heatmap(cm, cbar=True, annot=True, square=True, fmt='.2f', annot_kws={'size': 10}, yticklabels=cols.values, xticklabels=cols.values)
+best_features = train_data.corr().nlargest(30,'SalePrice')['SalePrice'].index
+new_train = train_data[best_features]
+new_train
+npdf = new_train.values
+ytrain = npdf[:,0]
+xtrain = npdf[:,1:]
+xtrain.shape
+ytrain.shape
+from sklearn import linear_model
+regr = linear_model.LinearRegression()
+regr.fit(xtrain,ytrain)
+new_train['SalePrice'].values
+regr.score
+xpred = regr.predict(xtrain)
+# ypred = regr.predict(ytrain)
+xpred
+from sklearn.model_selection import train_test_split
+
+
+X_train, X_test, y_train, y_test = train_test_split(xtrain, ytrain, test_size=0.25, random_state=1)
+regr.fit(X_train, y_train)
+regr.score(X_test, y_test)
+from sklearn.linear_model import perceptron
+net = perceptron.Perceptron(n_iter=100, verbose=0, random_state=None, fit_intercept=True, eta0=0.002)
+net
+net.fit(X_train, y_train)
+net.score(X_test, y_test)
+net.predict(X_test)
+net.score(X_test, y_test)
+y_test
+from sklearn.neural_network import MLPRegressor
+mlpr = MLPRegressor(hidden_layer_sizes=(30))
+mlpr.fit(X_train, y_train)
+mlpr.score(X_test, y_test)
+mlpr.predict(X_test)
+mlpr = MLPRegressor(hidden_layer_sizes=(30))
+mlpr.fit(X_train, y_train)
+mlpr.score(X_test, y_test)
+mlpr = MLPRegressor(hidden_layer_sizes=(50))
+mlpr.fit(X_train, y_train)
+mlpr.score(X_test, y_test)
+mlpr = MLPRegressor(hidden_layer_sizes=(60))
+mlpr.fit(X_train, y_train)
+mlpr.score(X_test, y_test)
+mlpr = MLPRegressor(hidden_layer_sizes=(80))
+mlpr.fit(X_train, y_train)
+mlpr.score(X_test, y_test)
+mlpr = MLPRegressor(hidden_layer_sizes=(100))
+mlpr.fit(X_train, y_train)
+mlpr.score(X_test, y_test)
+mlpr = MLPRegressor(hidden_layer_sizes=(110))
+mlpr.fit(X_train, y_train)
+mlpr.score(X_test, y_test)
+mlpr = MLPRegressor(hidden_layer_sizes=(15,30,10))
+mlpr.fit(X_train, y_train)
+mlpr.score(X_test, y_test)
+mlpr = MLPRegressor(hidden_layer_sizes=(100,50))
+mlpr.fit(X_train, y_train)
+mlpr.score(X_test, y_test)
+'''
+RANDOM FOREST CLASIFIER
+'''
+from sklearn.ensemble import RandomForestRegressor
+rfr = RandomForestRegressor()
+rfr.fit(X_train,y_train)
+rfr.score(X_test,y_test)
+rfr.get_params()
+rfr.n_estimators
+'''
+    LoGISTIC REGRESSION from here
+
+
+'''
+from sklearn.linear_model import LogisticRegressionCV
+lgr = LogisticRegressionCV()
+lgr.fit(X_train,y_train)
+lgr.score(X_test,y_test)
+plt.scatter(regr.predict(X_test), y_test).xlabel('Predicted').ylabel('Measured')
+plt.scatter([1,2,3,4],[2,4,6,8])
+train_data.columns
+#now preprocess the test data
+best_features=list(best_features)
+best_features.remove('SalePrice')
+len(best_features)
+test_data = pd.read_csv('test.csv')
+test_data = test_data[best_features]
+test_data.columns
+'''Getting all rows having non-null values. For testing, we need not do any interpolation because our motive is not to train the model but to use it to predict clean test data-points'''
+test_data = test_data[test_data.notnull().sum(axis=1) == 29]
+test_data.isnull().sum().sum()
+#now convert from int to num
+quality_mapping
+for c in test_data.columns:
+    if test_data[c].dtype == 'object' and any(x in test_data[c].unique() for x in quality_mapping):
+        print (c, test_data[c].unique())
+        test_data[c] = test_data[c].map(quality_mapping)
+test_data.head()
+for c in test_data.columns[test_data.dtypes == 'object']:
+    print (c)
+    feature_char = sorted(test_data[c].unique())
+    count = 1
+    mapping = dict()
+    for key in feature_char:
+        mapping[key] = count
+        count += 1
+    print (mapping)
+    test_data[c] = test_data[c].map(mapping)
+test_data.head()
+#now our columns in the test data must be in the same order as the train
+new_train.columns
+#loadintg test dateset on the basis of best features took care of that.
+test_predictions = rfr.predict(test_data)
+test_predictions
+plt.bar(range(1,test_predictions.shape[0]+1),test_predictions)
+test_predictions
+#checking the validation accuracy with 15 features
+
+
+features15 = train_data.corr().nlargest(16,'SalePrice')['SalePrice'].index
+new_train15 = train_data[features15]
+features15
+npdf15 = new_train15.values
+xtrain15 = npdf15[:,1:]
+ytrain15 = npdf15[:,0]
+X_train15, X_test15, y_train15, y_test15 = train_test_split(xtrain15, ytrain15, test_size=0.25, random_state=1)
+rfr15 = RandomForestRegressor()
+rfr15.fit(X_train15,y_train15)
+pred15 = rfr15.predict(X_test15)
+sc15 = rfr15.score(X_test15,y_test15)
+rms15 = np.sqrt(mean_squared_error(np.log1p(y_test15),np.log1p(pred15)))
+print("Predictions : {}\nScore : {}\nRMS : {}".format(pred15,sc15,rms15))
+plt.bar(range(1,pred15.shape[0]+1),pred15)
+features30 = train_data.corr().nlargest(31,'SalePrice')['SalePrice'].index
+new_train30 = train_data[features30]
+npdf30 = new_train30.values
+xtrain30 = npdf30[:,1:]
+ytrain30 = npdf30[:,0]
+X_train30, X_test30, y_train30, y_test30 = train_test_split(xtrain30, ytrain30, test_size=0.25, random_state=1)
+rfr30 = RandomForestRegressor()
+rfr30.fit(X_train30,y_train30)
+sc30 = rfr30.score(X_test30,y_test30)
+pred30 = rfr30.predict(X_test30)
+rms30 = np.sqrt(mean_squared_error(np.log1p(y_test30),np.log1p(pred30)))
+print("Predictions : {}\nScore : {}\nRMS : {}".format(pred30,sc30,rms30))
+plt.bar(range(1,pred30.shape[0]+1),pred30)
+features30 = train_data.corr().nlargest(31,'SalePrice')['SalePrice'].index
+new_train30 = train_data[features30]
+npdf30 = new_train30.values
+xtrain30 = npdf30[:,1:]
+ytrain30 = npdf30[:,0]
+X_train30, X_test30, y_train30, y_test30 = train_test_split(xtrain30, ytrain30, test_size=0.25, random_state=1)
+regr30 = linear_model.LinearRegression()
+regr30.fit(X_train30,y_train30)
+regrsc30 = regr30.score(X_test30,y_test30)
+regrpred30 = rfr30.predict(X_test30)
+regrrms30 = np.sqrt(mean_squared_error(np.log1p(y_test30),np.log1p(regrpred30)))
+print("Predictions : {}\nScore : {}\nRMS : {}".format(regrpred30,regrsc30,regrrms30))
+plt.bar(range(1,regrpred30.shape[0]+1),regrpred30)
+features30 = train_data.corr().nlargest(31,'SalePrice')['SalePrice'].index
+new_train30 = train_data[features30]
+npdf30 = new_train30.values
+xtrain30 = npdf30[:,1:]
+ytrain30 = npdf30[:,0]
+X_train30, X_test30, y_train30, y_test30 = train_test_split(xtrain30, ytrain30, test_size=0.25, random_state=1)
+mlpr = MLPRegressor(hidden_layer_sizes=(100,50))
+mlpr.fit(X_train30, y_train30)
+mlprsc = mlpr.score(X_test30, y_test30)
+mlprpred = mlpr.predict(X_test30)
+mlprrms = np.sqrt(mean_squared_error(np.log1p(y_test30),np.log1p(mlprpred)))
+print("Predictions : {}\nScore : {}\nRMS : {}".format(mlprpred,mlprsc,mlprrms))
+plt.bar(range(1,mlprpred.shape[0]+1),mlprpred)
+features30 = train_data.corr().nlargest(31,'SalePrice')['SalePrice'].index
+new_train30 = train_data[features30]
+npdf30 = new_train30.values
+xtrain30 = npdf30[:,1:]
+ytrain30 = npdf30[:,0]
+X_train30, X_test30, y_train30, y_test30 = train_test_split(xtrain30, ytrain30, test_size=0.25, random_state=1)
+mlpr = MLPRegressor(hidden_layer_sizes=(15,30,10))
+mlpr.fit(X_train30, y_train30)
+mlprsc = mlpr.score(X_test30, y_test30)
+mlprpred = mlpr.predict(X_test30)
+mlprrms = np.sqrt(mean_squared_error(np.log1p(y_test30),np.log1p(mlprpred)))
+print("Predictions : {}\nScore : {}\nRMS : {}".format(mlprpred,mlprsc,mlprrms))
+plt.bar(range(1,mlprpred.shape[0]+1),mlprpred)
+features30 = train_data.corr().nlargest(31,'SalePrice')['SalePrice'].index
+new_train30 = train_data[features30]
+npdf30 = new_train30.values
+xtrain30 = npdf30[:,1:]
+ytrain30 = npdf30[:,0]
+X_train30, X_test30, y_train30, y_test30 = train_test_split(xtrain30, ytrain30, test_size=0.25, random_state=1)
+mlpr = MLPRegressor(hidden_layer_sizes=(110))
+mlpr.fit(X_train30, y_train30)
+mlprsc = mlpr.score(X_test30, y_test30)
+mlprpred = mlpr.predict(X_test30)
+mlprrms = np.sqrt(mean_squared_error(np.log1p(y_test30),np.log1p(mlprpred)))
+print("Predictions : {}\nScore : {}\nRMS : {}".format(mlprpred,mlprsc,mlprrms))
+plt.bar(range(1,mlprpred.shape[0]+1),mlprpred)
+features30 = train_data.corr().nlargest(31,'SalePrice')['SalePrice'].index
+new_train30 = train_data[features30]
+npdf30 = new_train30.values
+xtrain30 = npdf30[:,1:]
+ytrain30 = npdf30[:,0]
+X_train30, X_test30, y_train30, y_test30 = train_test_split(xtrain30, ytrain30, test_size=0.25, random_state=1)
+mlpr = MLPRegressor(hidden_layer_sizes=(100))
+mlpr.fit(X_train30, y_train30)
+mlprsc = mlpr.score(X_test30, y_test30)
+mlprpred = mlpr.predict(X_test30)
+mlprrms = np.sqrt(mean_squared_error(np.log1p(y_test30),np.log1p(mlprpred)))
+print("Predictions : {}\nScore : {}\nRMS : {}".format(mlprpred,mlprsc,mlprrms))
+plt.bar(range(1,mlprpred.shape[0]+1),mlprpred)
+features30 = train_data.corr().nlargest(31,'SalePrice')['SalePrice'].index
+new_train30 = train_data[features30]
+npdf30 = new_train30.values
+xtrain30 = npdf30[:,1:]
+ytrain30 = npdf30[:,0]
+X_train30, X_test30, y_train30, y_test30 = train_test_split(xtrain30, ytrain30, test_size=0.25, random_state=1)
+mlpr = MLPRegressor(hidden_layer_sizes=(80))
+mlpr.fit(X_train30, y_train30)
+mlprsc = mlpr.score(X_test30, y_test30)
+mlprpred = mlpr.predict(X_test30)
+mlprrms = np.sqrt(mean_squared_error(np.log1p(y_test30),np.log1p(mlprpred)))
+print("Predictions : {}\nScore : {}\nRMS : {}".format(mlprpred,mlprsc,mlprrms))
+plt.bar(range(1,mlprpred.shape[0]+1),mlprpred)
+features30 = train_data.corr().nlargest(31,'SalePrice')['SalePrice'].index
+new_train30 = train_data[features30]
+npdf30 = new_train30.values
+xtrain30 = npdf30[:,1:]
+ytrain30 = npdf30[:,0]
+X_train30, X_test30, y_train30, y_test30 = train_test_split(xtrain30, ytrain30, test_size=0.25, random_state=1)
+mlpr = MLPRegressor(hidden_layer_sizes=(60))
+mlpr.fit(X_train30, y_train30)
+mlprsc = mlpr.score(X_test30, y_test30)
+mlprpred = mlpr.predict(X_test30)
+mlprrms = np.sqrt(mean_squared_error(np.log1p(y_test30),np.log1p(mlprpred)))
+print("Predictions : {}\nScore : {}\nRMS : {}".format(mlprpred,mlprsc,mlprrms))
+plt.bar(range(1,mlprpred.shape[0]+1),mlprpred)
+features30 = train_data.corr().nlargest(31,'SalePrice')['SalePrice'].index
+new_train30 = train_data[features30]
+npdf30 = new_train30.values
+xtrain30 = npdf30[:,1:]
+ytrain30 = npdf30[:,0]
+X_train30, X_test30, y_train30, y_test30 = train_test_split(xtrain30, ytrain30, test_size=0.25, random_state=1)
+mlpr = MLPRegressor(hidden_layer_sizes=(50))
+mlpr.fit(X_train30, y_train30)
+mlprsc = mlpr.score(X_test30, y_test30)
+mlprpred = mlpr.predict(X_test30)
+mlprrms = np.sqrt(mean_squared_error(np.log1p(y_test30),np.log1p(mlprpred)))
+print("Predictions : {}\nScore : {}\nRMS : {}".format(mlprpred,mlprsc,mlprrms))
+plt.bar(range(1,mlprpred.shape[0]+1),mlprpred)
+features30 = train_data.corr().nlargest(31,'SalePrice')['SalePrice'].index
+new_train30 = train_data[features30]
+npdf30 = new_train30.values
+xtrain30 = npdf30[:,1:]
+ytrain30 = npdf30[:,0]
+X_train30, X_test30, y_train30, y_test30 = train_test_split(xtrain30, ytrain30, test_size=0.25, random_state=1)
+mlpr = MLPRegressor(hidden_layer_sizes=(30))
+mlpr.fit(X_train30, y_train30)
+mlprsc = mlpr.score(X_test30, y_test30)
+mlprpred = mlpr.predict(X_test30)
+mlprrms = np.sqrt(mean_squared_error(np.log1p(y_test30),np.log1p(mlprpred)))
+print("Predictions : {}\nScore : {}\nRMS : {}".format(mlprpred,mlprsc,mlprrms))
+plt.bar(range(1,mlprpred.shape[0]+1),mlprpred)
+
